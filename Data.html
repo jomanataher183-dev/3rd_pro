@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>People Table</title>
+<style>
+  :root {
+    --bg: #e0cedc;
+    --panel: #ffffff;
+    --ink: #3e0b34;
+    --muted: #a17e9b;
+    --line: #e4c5dd;
+    --accent: #40243b;
+    --head: #dfeae6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  main { max-width: 720px; margin: 0 auto; }
+  h1 { margin: 0 0 16px; font-size: 1.6rem; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  input[type="search"] {
+    flex: 1 1 220px;
+    padding: 10px 12px;
+    font: inherit;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  button {
+    padding: 10px 14px;
+    font: inherit;
+    color: var(--accent);
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--head); }
+  button.active { color: #fff; background: var(--accent); }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+  th { background: var(--head); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.empty { color: var(--muted); text-align: center; }
+  #count { margin: 10px 0 0; color: var(--muted); font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>People</h1>
+
+  <div class="controls">
+    <input type="search" id="search" placeholder="Search by name, email, age, or city" aria-label="Search people">
+    <button type="button" id="sortName">Sort by name</button>
+    <button type="button" id="sortAge">Sort by age</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Age</th><th>City</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <p id="count" aria-live="polite"></p>
+</main>
+
+<script>
+  // The data: an array of objects.
+  const people = [
+    { name: "Mariam Hassan", email: "mariam@example.com", age: 21, city: "Cairo" },
+    { name: "Omar Khaled",   email: "omar@example.com",   age: 34, city: "Alexandria" },
+    { name: "Nour Ibrahim",  email: "nour@example.com",   age: 19, city: "Giza" },
+    { name: "Youssef Adel",  email: "youssef@example.com", age: 27, city: "Luxor" },
+    { name: "Salma Mostafa", email: "salma@example.com",  age: 42, city: "Aswan" },
+    { name: "Ahmed Samir",   email: "ahmed@example.com",  age: 30, city: "Cairo" },
+    { name: "Laila Fathy",   email: "laila@example.com",  age: 24, city: "Mansoura" },
+    { name: "Karim Nabil",   email: "karim@example.com",  age: 38, city: "Giza" }
+  ];
+
+  // Add the users who registered in register.html (saved in this browser).
+  try {
+    const saved = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
+    saved.forEach(u => people.push({ name: u.name, email: u.email, age: u.age, city: "—" }));
+  } catch (e) {
+    // If storage is unavailable, just show the sample data.
+  }
+
+  const tbody = document.getElementById("tbody");
+  const searchBox = document.getElementById("search");
+  const count = document.getElementById("count");
+  const sortNameBtn = document.getElementById("sortName");
+  const sortAgeBtn = document.getElementById("sortAge");
+
+  // Current view state: what to sort by, and in which direction.
+  let sortKey = null;       // "name" or "age" (null = original order)
+  let sortAsc = true;
+
+  function getVisibleRows() {
+    const term = searchBox.value.trim().toLowerCase();
+
+    // Filter: keep a person if any property contains the search text.
+    const rows = people.filter(p =>
+      p.name.toLowerCase().includes(term) ||
+      p.email.toLowerCase().includes(term) ||
+      String(p.age).includes(term) ||
+      p.city.toLowerCase().includes(term)
+    );
+
+    // Sort a copy (filter already made one) so the original array is untouched.
+    if (sortKey) {
+      rows.sort((a, b) => {
+        const result = sortKey === "age"
+          ? a.age - b.age
+          : a.name.localeCompare(b.name);
+        return sortAsc ? result : -result;
+      });
+    }
+    return rows;
+  }
+
+  function render() {
+    const rows = getVisibleRows();
+    tbody.innerHTML = "";
+
+    if (rows.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 4;
+      td.className = "empty";
+      td.textContent = "No matching people found.";
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+
+    rows.forEach(p => {
+      const tr = document.createElement("tr");
+      [p.name, p.email, p.age, p.city].forEach(value => {
+        const td = document.createElement("td");
+        td.textContent = value; // textContent keeps the page safe from HTML injection
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+
+    count.textContent = `Showing ${rows.length} of ${people.length} people`;
+
+    // Update button labels and highlight the active sort.
+    sortNameBtn.textContent = "Sort by name" + (sortKey === "name" ? (sortAsc ? " (A–Z)" : " (Z–A)") : "");
+    sortAgeBtn.textContent = "Sort by age" + (sortKey === "age" ? (sortAsc ? " (low–high)" : " (high–low)") : "");
+    sortNameBtn.classList.toggle("active", sortKey === "name");
+    sortAgeBtn.classList.toggle("active", sortKey === "age");
+  }
+
+  function setSort(key) {
+    // Clicking the same button again flips the direction.
+    if (sortKey === key) {
+      sortAsc = !sortAsc;
+    } else {
+      sortKey = key;
+      sortAsc = true;
+    }
+    render();
+  }
+
+  searchBox.addEventListener("input", render);          // filters while typing
+  sortNameBtn.addEventListener("click", () => setSort("name"));
+  sortAgeBtn.addEventListener("click", () => setSort("age"));
+
+  render();
+</script>
+</body>
+</html>

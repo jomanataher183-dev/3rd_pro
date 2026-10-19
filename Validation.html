@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Register</title>
+<style>
+  :root {
+    --bg: #eec0f4;
+    --panel: #ffffff;
+    --ink: #2d1730;
+    --muted: #705b71;
+    --line: #c5d3cf;
+    --accent: #513b59;
+    --error: #4b0e0a;
+    --ok: #1b347a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  form {
+    width: 100%;
+    max-width: 420px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 28px;
+  }
+  h1 { margin: 0 0 4px; font-size: 1.6rem; }
+  p.sub { margin: 0 0 22px; color: var(--muted); font-size: 0.95rem; }
+  .field { margin-bottom: 16px; }
+  label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.95rem; }
+  input {
+    width: 100%;
+    padding: 10px 12px;
+    font: inherit;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--ink);
+  }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input.invalid { border-color: var(--error); }
+  .error { min-height: 1.1em; margin: 4px 0 0; color: var(--error); font-size: 0.85rem; }
+  button {
+    width: 100%;
+    padding: 12px;
+    font: inherit;
+    font-weight: bold;
+    color: #fff;
+    background: var(--accent);
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  button:hover { background: #2f0b54; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  #success { margin: 14px 0 0; color: var(--ok); font-weight: bold; text-align: center; }
+</style>
+</head>
+<body>
+  <form id="regForm" novalidate>
+    <h1>Create your account</h1>
+    <p class="sub">Fill in all fields to register.</p>
+
+    <div class="field">
+      <label for="name">Name</label>
+      <input type="text" id="name" autocomplete="name">
+      <p class="error" id="nameError"></p>
+    </div>
+
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="text" id="email" autocomplete="email">
+      <p class="error" id="emailError"></p>
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="new-password">
+      <p class="error" id="passwordError"></p>
+    </div>
+
+    <div class="field">
+      <label for="confirm">Confirm password</label>
+      <input type="password" id="confirm" autocomplete="new-password">
+      <p class="error" id="confirmError"></p>
+    </div>
+
+    <div class="field">
+      <label for="age">Age</label>
+      <input type="text" id="age" inputmode="numeric">
+      <p class="error" id="ageError"></p>
+    </div>
+
+    <button type="submit">Register</button>
+    <p id="success" role="status"></p>
+  </form>
+
+<script>
+  const form = document.getElementById("regForm");
+  const fields = ["name", "email", "password", "confirm", "age"];
+
+  // Each validator returns an error message, or "" if the value is fine.
+  const validators = {
+    name(v) {
+      v = v.trim();
+      if (v === "") return "Name is required.";
+      if (v.length < 2) return "Name must be at least 2 characters.";
+      return "";
+    },
+    email(v) {
+      v = v.trim();
+      if (v === "") return "Email is required.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Enter a valid email, like name@example.com.";
+      return "";
+    },
+    password(v) {
+      if (v === "") return "Password is required.";
+      if (v.length < 8) return "Password must be at least 8 characters.";
+      if (!/[A-Za-z]/.test(v) || !/[0-9]/.test(v)) return "Password must include a letter and a number.";
+      return "";
+    },
+    confirm(v) {
+      if (v === "") return "Please confirm your password.";
+      if (v !== document.getElementById("password").value) return "Passwords do not match.";
+      return "";
+    },
+    age(v) {
+      v = v.trim();
+      if (v === "") return "Age is required.";
+      if (!/^\d+$/.test(v)) return "Age must be a whole number.";
+      const n = Number(v);
+      if (n < 13) return "You must be at least 13 years old.";
+      if (n > 120) return "Enter a realistic age (120 or less).";
+      return "";
+    }
+  };
+
+  function checkField(id) {
+    const input = document.getElementById(id);
+    const message = validators[id](input.value);
+    document.getElementById(id + "Error").textContent = message;
+    input.classList.toggle("invalid", message !== "");
+    input.setAttribute("aria-invalid", message !== "");
+    return message === "";
+  }
+
+  // Check each field when the user leaves it, then re-check live while fixing it.
+  fields.forEach(id => {
+    const input = document.getElementById(id);
+    input.addEventListener("blur", () => checkField(id));
+    input.addEventListener("input", () => {
+      if (input.classList.contains("invalid")) checkField(id);
+      // If the password changes, the confirm field may become valid or invalid.
+      if (id === "password" && document.getElementById("confirm").value !== "") checkField("confirm");
+    });
+  });
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault(); // always stop the browser from sending first
+    const success = document.getElementById("success");
+    success.textContent = "";
+
+    // Run every check (don't stop at the first error) so all messages show.
+    const results = fields.map(checkField);
+    const allValid = results.every(Boolean);
+
+    if (!allValid) {
+      document.querySelector("input.invalid").focus();
+      return; // form is NOT submitted
+    }
+
+    // Save the new user (without the password) so data.html can show it.
+    const user = {
+      name: document.getElementById("name").value.trim(),
+      email: document.getElementById("email").value.trim().toLowerCase(),
+      age: Number(document.getElementById("age").value.trim())
+    };
+
+    try {
+      const users = JSON.parse(localStorage.getItem("registeredUsers") || "[]");
+      if (users.some(u => u.email === user.email)) {
+        document.getElementById("emailError").textContent = "This email is already registered.";
+        document.getElementById("email").classList.add("invalid");
+        document.getElementById("email").focus();
+        return;
+      }
+      users.push(user);
+      localStorage.setItem("registeredUsers", JSON.stringify(users));
+    } catch (e) {
+      success.textContent = "Could not save your data in this browser.";
+      return;
+    }
+
+    success.textContent = "Registration successful!";
+    form.reset();
+  });
+</script>
+</body>
+</html>
